@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Valentine Quest</title>
+
+  <style>
+    :root{
+      --tile: 32px;
+
+      /* Valentine palette */
+      --bg1: #ffd0df;
+      --bg2: #ff5f92;
+      --bg3: #7a0b2b;
+
+      --panel: rgba(255,255,255,0.18);
+      --panelBorder: rgba(255,255,255,0.24);
+      --text: #ffffff;
+      --muted: rgba(255,255,255,0.86);
+
+      --shadow: rgba(0,0,0,0.30);
+    }
+
+    *{ box-sizing: border-box; }
+    body{
+      margin:0;
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+
+      background:
+        radial-gradient(900px 600px at 30% 20%, rgba(255,255,255,0.35), transparent 60%),
+        radial-gradient(900px 600px at 80% 85%, rgba(255,255,255,0.22), transparent 60%),
+        radial-gradient(1100px 800px at 50% 40%, var(--bg1) 0%, var(--bg2) 45%, var(--bg3) 100%);
+      overflow:hidden;
+    }
+
+    /* Floating hearts background */
+    .hearts {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .heart {
+      position: absolute;
+      bottom: -40px;
+      font-size: var(--size, 18px);
+      left: var(--left, 50%);
+      opacity: var(--op, 0.35);
+      filter: drop-shadow(0 10px 12px rgba(0,0,0,0.25));
+      animation: floatUp var(--dur, 10s) linear infinite;
+      transform: translateY(0) translateX(0) rotate(var(--rot, 0deg));
+      will-change: transform, opacity;
+    }
+    @keyframes floatUp {
+      0%   { transform: translateY(0) translateX(0) rotate(var(--rot, 0deg)); opacity: 0; }
+      10%  { opacity: var(--op, 0.35); }
+      100% { transform: translateY(-120vh) translateX(var(--drift, 0px)) rotate(calc(var(--rot, 0deg) + 40deg)); opacity: 0; }
+    }
+
+    .wrap{
+      width: min(960px, 95vw);
+      display:grid;
+      gap:12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hud{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:12px 14px;
+      background: var(--panel);
+      border: 1px solid var(--panelBorder);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 18px 50px var(--shadow);
+    }
+    .hud strong{ letter-spacing: 0.5px; }
+    .hud .hint{ color: var(--muted); font-size: 14px; }
+    .hud .btn{
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.24);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-weight:700;
+    }
+    .hud .btn:hover{ background: rgba(255,255,255,0.24); }
+
+    /* GAME VIEW */
+    .gameShell{
+      display:grid;
+      place-items:center;
+      padding: 14px;
+      background: var(--panel);
+      border: 1px solid var(--panelBorder);
+      border-radius: 18px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 18px 50px var(--shadow);
+    }
+
+    .game{
+      position:relative;
+      width: calc(var(--tile) * var(--w));
+      height: calc(var(--tile) * var(--h));
+      image-rendering: pixelated;
+      border-radius: 18px;
+      overflow:hidden;
+      outline: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .grid{
+      position:absolute;
+      inset:0;
+      display:grid;
+      grid-template-columns: repeat(var(--w), var(--tile));
+      grid-template-rows: repeat(var(--h), var(--tile));
+    }
+
+    .tile{
+      width: var(--tile);
+      height: var(--tile);
+    }
+
+    /* Tiles: valentine-y */
+    .floor{
+      background: #ffb3c7;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+    }
+    .wall{
+      background: #7a0b2b;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10);
+    }
+    .water{
+      background: #ff4d7f;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14);
+    }
+    .grass{
+      background: #ff88aa;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14);
+    }
+    .heartSpot{
+      position:relative;
+      background: #ff2e6e;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22);
+    }
+    .heartSpot::after{
+      content:"♥";
+      position:absolute;
+      inset:0;
+      display:grid;
+      place-items:center;
+      color:#ffffff;
+      font-size: 18px;
+      text-shadow: 0 0 12px rgba(255,255,255,0.55);
+    }
+
+    /* PLAYER */
+    .player{
+      position:absolute;
+      width: var(--tile);
+      height: var(--tile);
+      transform: translate(calc(var(--x) * var(--tile)), calc(var(--y) * var(--tile)));
+      transition: transform 90ms linear;
+      display:grid;
+      place-items:center;
+      pointer-events:none;
+      z-index: 3;
+    }
+
+    /* White cat pixel-ish sprite (pure CSS) */
+    .cat{
+      position: relative;
+      width: 24px;
+      height: 20px;
+      image-rendering: pixelated;
+    }
+    .cat .head{
+      position:absolute;
+      left: 2px;
+      top: 4px;
+      width: 20px;
+      height: 16px;
+      border-radius: 7px;
+      background: #ffffff;
+      box-shadow:
+        0 10px 0 rgba(0,0,0,0.18),
+        0 0 0 2px rgba(0,0,0,0.22);
+    }
+    .cat .ear{
+      position:absolute;
+      top: 0px;
+      width: 8px;
+      height: 8px;
+      background: #ffffff;
+      transform: rotate(45deg);
+      border-radius: 2px;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.18);
+    }
+    .cat .ear.left{ left: 2px; }
+    .cat .ear.right{ right: 2px; }
+
+    .cat .innerEar{
+      position:absolute;
+      inset: 2px;
+      background: #ff90b0;
+      border-radius: 2px;
+      opacity: 0.85;
+    }
+    .cat .eye{
+      position:absolute;
+      top: 10px;
+      width: 3px;
+      height: 3px;
+      background: #2b0b13;
+      border-radius: 1px;
+    }
+    .cat .eye.left{ left: 7px; }
+    .cat .eye.right{ right: 7px; }
+
+    .cat .nose{
+      position:absolute;
+      left: 50%;
+      top: 12px;
+      width: 4px;
+      height: 3px;
+      transform: translateX(-50%);
+      background: #ff4d7f;
+      border-radius: 2px;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
+    }
+    .cat .blush{
+      position:absolute;
+      top: 12px;
+      width: 4px;
+      height: 3px;
+      background: rgba(255, 120, 160, 0.85);
+      border-radius: 2px;
+      filter: blur(0.1px);
+    }
+    .cat .blush.left{ left: 4px; }
+    .cat .blush.right{ right: 4px; }
+
+    .tiny{
+      color: rgba(255,255,255,0.78);
+      font-size: 13px;
+      margin-top: 6px;
+      text-align:center;
+    }
+
+    /* OVERLAYS */
+    .overlay{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,0.45);
+      display:none;
+      place-items:center;
+      padding: 18px;
+      z-index: 5;
+    }
+    .overlay.show{ display:grid; }
+
+    .card{
+      width: min(680px, 94vw);
+      background: rgba(122, 11, 43, 0.88);
+      border: 1px solid rgba(255,255,255,0.20);
+      border-radius: 22px;
+      padding: 22px;
+      box-shadow: 0 30px 90px rgba(0,0,0,0.55);
+      backdrop-filter: blur(12px);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .card::before{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      background:
+        radial-gradient(800px 300px at 20% 0%, rgba(255,255,255,0.20), transparent 60%),
+        radial-gradient(800px 300px at 80% 100%, rgba(255, 90, 146, 0.35), transparent 60%);
+      pointer-events:none;
+    }
+
+    .cardInner{
+      position:relative;
+      display:grid;
+      gap:12px;
+    }
+
+    .card h1{
+      margin:0;
+      font-size: clamp(26px, 4vw, 40px);
+      letter-spacing: 0.5px;
+    }
+    .card p{
+      margin:0;
+      color: rgba(255,255,255,0.92);
+      line-height: 1.5;
+      font-size: 16px;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top: 8px;
+      position: relative;
+    }
+    .actions button{
+      border: 1px solid rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.14);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      font-weight:800;
+      transition: transform 120ms ease, background 120ms ease;
+    }
+    .actions button:hover{ background: rgba(255,255,255,0.22); }
+
+    /* Intro overlay styling */
+    .introTitle{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .introTitle .bigHeart{
+      font-size: 26px;
+      filter: drop-shadow(0 10px 12px rgba(0,0,0,0.25));
+    }
+
+    /* The "No" button will be absolutely positioned within .actions (intro only) */
+    .noWrap{
+      position: relative;
+      min-height: 54px; /* space so it can move around without collapsing */
+      flex: 1 1 240px;
+    }
+    .noBtn{
+      position:absolute;
+      left: 0;
+      top: 0;
+      transform-origin: center;
+      touch-action: none;
+      user-select: none;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Floating hearts layer -->
+  <div class="hearts" id="hearts"></div>
+
+  <div class="wrap">
+    <div class="hud">
+      <div>
+        <strong>Valentine Quest</strong>
+        <div class="hint">Move with <b>WASD</b> or <b>Arrow Keys</b>. Find the ♥ tile.</div>
+      </div>
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+
+    <div class="gameShell">
+      <div class="game" id="game" aria-label="Pixel map game">
+        <div class="grid" id="grid"></div>
+        <div class="player" id="player" aria-hidden="true">
+          <div class="cat" title="cat">
+            <div class="ear left"><div class="innerEar"></div></div>
+            <div class="ear right"><div class="innerEar"></div></div>
+            <div class="head"></div>
+            <div class="eye left"></div>
+            <div class="eye right"></div>
+            <div class="nose"></div>
+            <div class="blush left"></div>
+            <div class="blush right"></div>
+          </div>
+        </div>
+      </div>
+      <div class="tiny">Silly time</div>
+    </div>
+  </div>
+
+  <!-- INTRO OVERLAY -->
+  <div class="overlay show" id="intro" role="dialog" aria-modal="true">
+    <div class="card">
+      <div class="cardInner">
+        <div class="introTitle">
+          <span class="bigHeart">💗</span>
+          <h1 style="margin:0;">Do u wish to open the card?</h1>
+        </div>
+        <p>Choose wisely.</p>
+
+        <div class="actions" id="introActions" style="margin-top: 10px;">
+          <button id="introYes">YES</button>
+
+          <!-- A wrapper so "NO" can run around inside it -->
+          <div class="noWrap" id="noWrap">
+            <button class="noBtn" id="introNo">NO</button>
+          </div>
+        </div>
+
+        <div class="tiny" id="noHint"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FINAL CARD OVERLAY -->
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true">
+    <div class="card">
+      <div class="cardInner">
+        <h1>Happy Valentine’s Day my princess ♥</h1>
+        <p>
+          I love you so much babyyy you are the best girlfriend I could ever ask for. I wouldn't choose to spend my time with anyone else. You are so beautiful and so sweet and such an amazing person and I am so lucky to have someone like you baby. Keep being the amazing person you are and don't let the haters hate! I can't wait tu see yu on Tuesday! I LOVEEEEE YOUUUUU BABYYYYYY!!
+        </p>
+        <p>
+          Love, Du
+        </p>
+
+        <div class="actions">
+          <button id="yesBtn">YAY</button>
+          <button id="closeBtn">YAYAYAYYA</button>
+        </div>
+        <div class="tiny" id="result"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  /* ---------------------------
+     Floating hearts background
+  ---------------------------- */
+  const heartsEl = document.getElementById("hearts");
+  const HEARTS = ["♥","💗","💖","💘","💞"];
+  const HEART_COUNT = 22;
+
+  function rand(min, max){ return Math.random() * (max - min) + min; }
+
+  function spawnHearts(){
+    heartsEl.innerHTML = "";
+    for (let i = 0; i < HEART_COUNT; i++){
+      const s = document.createElement("div");
+      s.className = "heart";
+      s.textContent = HEARTS[Math.floor(Math.random() * HEARTS.length)];
+      s.style.setProperty("--left", `${rand(0, 100)}%`);
+      s.style.setProperty("--size", `${rand(14, 30)}px`);
+      s.style.setProperty("--op", `${rand(0.18, 0.45)}`);
+      s.style.setProperty("--dur", `${rand(7, 15)}s`);
+      s.style.setProperty("--rot", `${rand(-20, 20)}deg`);
+      s.style.setProperty("--drift", `${rand(-80, 80)}px`);
+      s.style.animationDelay = `${rand(0, 8)}s`;
+      heartsEl.appendChild(s);
+    }
+  }
+  spawnHearts();
+
+  /* ---------------------------
+     Map + game
+  ---------------------------- */
+  // Map legend:
+  // # wall (blocked)
+  // . floor (walkable)
+  // ~ water-ish (blocked)
+  // , grass-ish (walkable)
+  // H heart spot (walkable trigger)
+  // S spawn
+
+  const map = [
+    "########################",
+    "#S....,,,,,,,,......~~~#",
+    "#.####,######,####..~~~#",
+    "#....#,#....#,#..#..~~~#",
+    "####.#,#.##.#,#..#######",
+    "#....#,#.##.#,#......H.#",
+    "#.####,#....#,#######..#",
+    "#......,####,......,....#",
+    "########################",
+  ];
+
+  const gridEl = document.getElementById("grid");
+  const gameEl = document.getElementById("game");
+  const playerEl = document.getElementById("player");
+
+  const overlay = document.getElementById("overlay");
+  const closeBtn = document.getElementById("closeBtn");
+  const yesBtn = document.getElementById("yesBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const result = document.getElementById("result");
+
+  const intro = document.getElementById("intro");
+  const introYes = document.getElementById("introYes");
+  const introNo = document.getElementById("introNo");
+  const noWrap = document.getElementById("noWrap");
+  const noHint = document.getElementById("noHint");
+
+  const h = map.length;
+  const w = map[0].length;
+
+  gameEl.style.setProperty("--w", w);
+  gameEl.style.setProperty("--h", h);
+
+  const tiles = [];
+  let spawn = {x: 1, y: 1};
+
+  for (let y = 0; y < h; y++) {
+    const row = map[y];
+    tiles[y] = [];
+    for (let x = 0; x < w; x++) {
+      const c = row[x];
+      tiles[y][x] = c;
+      if (c === "S") spawn = {x, y};
+    }
+  }
+
+  function tileClass(c){
+    if (c === "#") return "wall";
+    if (c === "~") return "water";
+    if (c === ",") return "grass";
+    if (c === "H") return "heartSpot";
+    return "floor";
+  }
+
+  function render(){
+    gridEl.innerHTML = "";
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const div = document.createElement("div");
+        div.className = "tile " + tileClass(tiles[y][x]);
+        gridEl.appendChild(div);
+      }
+    }
+  }
+
+  function isBlocked(x, y){
+    const c = tiles[y]?.[x];
+    if (!c) return true;
+    return (c === "#" || c === "~");
+  }
+
+  function isHeart(x, y){
+    return tiles[y]?.[x] === "H";
+  }
+
+  let player = {x: spawn.x, y: spawn.y};
+  let locked = false;      // locked when card open
+  let started = false;     // until intro YES is clicked
+
+  function setPlayerPos(){
+    playerEl.style.setProperty("--x", player.x);
+    playerEl.style.setProperty("--y", player.y);
+  }
+
+  function reset(){
+    player = {x: spawn.x, y: spawn.y};
+    locked = false;
+    result.textContent = "";
+    overlay.classList.remove("show");
+    setPlayerPos();
+  }
+
+  function openCard(){
+    locked = true;
+    overlay.classList.add("show");
+  }
+
+  function tryMove(dx, dy){
+    if (!started) return;
+    if (locked) return;
+    const nx = player.x + dx;
+    const ny = player.y + dy;
+    if (isBlocked(nx, ny)) return;
+
+    player.x = nx;
+    player.y = ny;
+    setPlayerPos();
+
+    if (isHeart(nx, ny)) {
+      setTimeout(openCard, 120);
+    }
+  }
+
+  const keyMap = new Map([
+    ["ArrowUp",  [0, -1]],
+    ["ArrowDown",[0,  1]],
+    ["ArrowLeft",[-1, 0]],
+    ["ArrowRight",[1,  0]],
+    ["w", [0, -1]],
+    ["s", [0,  1]],
+    ["a", [-1, 0]],
+    ["d", [1,  0]],
+    ["W", [0, -1]],
+    ["S", [0,  1]],
+    ["A", [-1, 0]],
+    ["D", [1,  0]],
+  ]);
+
+  window.addEventListener("keydown", (e) => {
+    const move = keyMap.get(e.key);
+    if (!move) return;
+    e.preventDefault();
+    tryMove(move[0], move[1]);
+  }, {passive:false});
+
+  closeBtn.addEventListener("click", () => {
+    overlay.classList.remove("show");
+    locked = false;
+  });
+
+  yesBtn.addEventListener("click", () => {
+    result.textContent = "YAYAYAYAYA";
+  });
+
+  resetBtn.addEventListener("click", () => {
+    reset();
+  });
+
+  /* ---------------------------
+     Intro screen: NO dodges + shrinks
+  ---------------------------- */
+  let noScale = 1.0;
+  let noDodges = 0;
+
+  function placeNoRandomly(){
+    const wrapRect = noWrap.getBoundingClientRect();
+    const btnRect = introNo.getBoundingClientRect();
+
+    // Safe area so it stays fully inside wrapper
+    const pad = 6;
+    const maxX = Math.max(pad, wrapRect.width - btnRect.width - pad);
+    const maxY = Math.max(pad, wrapRect.height - btnRect.height - pad);
+
+    const x = rand(pad, maxX);
+    const y = rand(pad, maxY);
+
+    introNo.style.left = `${x}px`;
+    introNo.style.top = `${y}px`;
+  }
+
+  function dodgeNo(){
+    noDodges++;
+    noScale = Math.max(0.35, noScale * 0.85);
+    introNo.style.transform = `scale(${noScale})`;
+    placeNoRandomly();
+
+    const lines = [
+      "Nice try ",
+      "Nope",
+      "That is mean",
+      "The NO button doesn't like yu",
+      "Why"
+    ];
+    noHint.textContent = lines[Math.min(lines.length - 1, Math.floor(noDodges/2))];
+  }
+
+  // Make wrapper tall enough for movement based on viewport
+  function sizeNoWrap(){
+    // Keep it feeling consistent on mobile/desktop
+    const width = Math.min(320, Math.max(220, window.innerWidth * 0.35));
+    noWrap.style.width = width + "px";
+    noWrap.style.height = "54px";
+    // Give it extra vertical room after a few dodges
+    if (noDodges >= 2) noWrap.style.height = "88px";
+    if (noDodges >= 5) noWrap.style.height = "120px";
+  }
+
+  // Dodge on hover/approach (mouse), and also on pointerdown (click attempts)
+  introNo.addEventListener("mouseenter", dodgeNo);
+  introNo.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    dodgeNo();
+  });
+
+  // Also dodge if cursor gets near it (more annoying/funny)
+  noWrap.addEventListener("mousemove", (e) => {
+    const btnRect = introNo.getBoundingClientRect();
+    const dx = e.clientX - (btnRect.left + btnRect.width/2);
+    const dy = e.clientY - (btnRect.top + btnRect.height/2);
+    const dist = Math.hypot(dx, dy);
+    if (dist < 70 && started === false) {
+      // Rate-limit a bit: only dodge if enough time passed
+      const now = performance.now();
+      if (!introNo._lastDodge || (now - introNo._lastDodge) > 220) {
+        introNo._lastDodge = now;
+        dodgeNo();
+      }
+    }
+  });
+
+  introYes.addEventListener("click", () => {
+    started = true;
+    intro.classList.remove("show");
+    // optional: tiny “pop” effect by respawning hearts
+    spawnHearts();
+  });
+
+  // If someone somehow presses Enter, treat as YES
+  window.addEventListener("keydown", (e) => {
+    if (!started && (e.key === "Enter" || e.key === " ")){
+      e.preventDefault();
+      introYes.click();
+    }
+  }, {passive:false});
+
+  window.addEventListener("resize", () => {
+    sizeNoWrap();
+    placeNoRandomly();
+  });
+
+  // Init
+  render();
+  reset();
+  sizeNoWrap();
+  // Put NO somewhere not directly under the cursor initially
+  setTimeout(() => {
+    placeNoRandomly();
+  }, 50);
+})();
+</script>
+</body>
+</html>
