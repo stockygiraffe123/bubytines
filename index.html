@@ -24,19 +24,22 @@
 
     *{ box-sizing: border-box; }
     body{
-      margin:0;
-      min-height:100vh;
-      display:grid;
-      place-items:center;
-      color: var(--text);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start; /* prevents vertical cut-off */
+  padding:40px 0;
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
 
-      background:
-        radial-gradient(900px 600px at 30% 20%, rgba(255,255,255,0.35), transparent 60%),
-        radial-gradient(900px 600px at 80% 85%, rgba(255,255,255,0.22), transparent 60%),
-        radial-gradient(1100px 800px at 50% 40%, var(--bg1) 0%, var(--bg2) 45%, var(--bg3) 100%);
-      overflow:hidden;
-    }
+  background:
+    radial-gradient(900px 600px at 30% 20%, rgba(255,255,255,0.35), transparent 60%),
+    radial-gradient(900px 600px at 80% 85%, rgba(255,255,255,0.22), transparent 60%),
+    radial-gradient(1100px 800px at 50% 40%, var(--bg1) 0%, var(--bg2) 45%, var(--bg3) 100%);
+
+  overflow:auto;
+}
 
     /* Floating hearts background */
     .hearts {
